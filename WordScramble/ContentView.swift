@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var score = 0
+
     @State private var usedWords = [String]()
     @State private var rootWord = ""
     @State private var newWord = ""
@@ -36,10 +38,18 @@ struct ContentView: View {
             .navigationTitle(rootWord)
             .onSubmit(addNewWord)
             .onAppear(perform: startGame)
+            .toolbar {
+                Button("New word") {
+                    startGame()
+                }
+            }
             .alert(errorTitle, isPresented: $showingError) {
                 Button("OK", role: .cancel) {  }
             } message: {
                 Text(errorMessage)
+            }
+            .safeAreaInset(edge: .bottom) {
+                ScoreBoard(value: score)
             }
         }
     }
@@ -64,13 +74,25 @@ struct ContentView: View {
             return // exit if the word isn't real
         }
         
+        guard isLongEnough(word: answer) else {
+            wordError(title: "Word too short", message: "Try with a longer word")
+            return // exit if the word isn't long enough
+        }
+        
         withAnimation {
             usedWords.insert(answer, at: 0)
+            updateScore(with: answer)
         }
         newWord = ""
     }
     
     func startGame() {
+        withAnimation {
+            usedWords.removeAll()
+        }
+        newWord = ""
+        score = 0
+
         if let startWordsURL = Bundle.main.url(forResource: "start", withExtension: "txt") {
             if let startWords = try? String(contentsOf: startWordsURL) {
                 let allWords = startWords.components(separatedBy: "\n")
@@ -80,6 +102,11 @@ struct ContentView: View {
         }
         
         fatalError("Could not load start.txt from bundle.")
+    }
+    
+    func updateScore(with word: String) {
+        let bonus = usedWords.count
+        score += word.count + bonus
     }
     
     func isOriginal(word: String) -> Bool {
@@ -108,6 +135,10 @@ struct ContentView: View {
         return misspelledRange.location == NSNotFound
     }
     
+    func isLongEnough(word: String) -> Bool {
+        return word.count > 3
+    }
+    
     func wordError(title: String, message: String) {
         errorTitle = title
         errorMessage = message
@@ -118,5 +149,21 @@ struct ContentView: View {
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
+    }
+}
+
+
+struct ScoreBoard: View {
+    var value: Int
+    
+    var body: some View {
+        Text("Score: \(value)")
+            .font(.headline)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity, maxHeight: 50)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .padding(20)
+            .shadow(color: Color(.sRGBLinear, white: 0, opacity: 0.20), radius: 25)
     }
 }
